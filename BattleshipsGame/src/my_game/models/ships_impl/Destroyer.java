@@ -9,11 +9,12 @@ import java.util.ArrayList;
 import my_game.models.game_components.BaseUnit;
 import my_game.models.game_components.CoralUnit;
 import my_game.models.game_components.GameObject;
+import my_game.models.game_components.MidUnit;
 import my_game.models.game_components.Mine;
 import my_game.models.game_components.Ship;
-import my_game.models.game_components.ShipDirection;
 import my_game.models.game_components.ShipUnit;
 import my_game.util.Range;
+import my_game.util.ShipDirection;
 import my_game.util.Vector2;
 import my_game.util.Range;
 
@@ -30,13 +31,6 @@ public class Destroyer extends Ship{
         super(pid);
         setShipType(ShipType.Destroyer);
         setSize(4);
-        
-        ShipUnit[] tempShipUnits = new ShipUnit[getSize()];
-        for (int i = 0; i < getSize(); i++){
-            tempShipUnits[i] = new ShipUnit(this);
-        }
-        setShipUnits(tempShipUnits);
-        
         setSpeed(8);
         setCurrentSize(getSize());
         setCurrentSpeed(getSpeed());
@@ -44,7 +38,7 @@ public class Destroyer extends Ship{
         setCannonDamage(1);
         setTorpedoDamage(1);
         setDirection(direction);
-        moveTo(position);        
+          
         weapons.add("cannon");
         weapons.add("torpedo");
         
@@ -52,13 +46,20 @@ public class Destroyer extends Ship{
             new Vector2(4,4), new Vector2(-7,4));   
         setCannonRange(cr);
         
-        Range tr = new Range(new Vector2(0,1), new Vector2(0,11),
+    /*    Range tr = new Range(new Vector2(0,1), new Vector2(0,11),
         		new Vector2(0,11), new Vector2(0,1));
         setTorpedoRange(tr);
-        
+   */     
         Range rr = new Range(new Vector2(-2,-1), new Vector2(5,-1), 
               new Vector2(5,1), new Vector2(-2,1));       
         setRadarRange(rr);
+        
+        ShipUnit[] tempShipUnits = new ShipUnit[getSize()];
+        for (int i = 0; i < getSize(); i++){
+            tempShipUnits[i] = new ShipUnit(this);
+        }
+        setShipUnits(tempShipUnits);
+        moveTo(position);      
     }
     
     public Destroyer(int pid) {
@@ -73,14 +74,31 @@ public class Destroyer extends Ship{
     	this.torpedoDamage = torpedoDamage;
     }
     
+	/**
+	 * There are three sub cases: target is ShipUnit, BaseUnit or Mine.
+	 * For ShipUnit case the function will first check if it hits from the side(another closed unit will be hit)
+	 * For mine case it will change the indicator in Mine that it is destroyed 
+	 * @param target = the target GameObject 
+	 */
     public void fireTorpedo(GameObject target) {
-    	if (target.getClass() == new ShipUnit().getClass()){
-			Ship tempShip = ((ShipUnit)target).getShip();
+    	if (target.getClass() == new ShipUnit().getClass()
+            || target.getClass() == new MidUnit().getClass()){
+			
+    		Ship tempShip = null;
+    		
+    		if(target.getClass() == new ShipUnit().getClass()){
+    			tempShip = ((ShipUnit)target).getShip();
+    		}
+    	    if(target.getClass() == new MidUnit().getClass()){
+    	    	tempShip = ((MidUnit)target).getShip();
+    	    }
+			
+			//System.out.println("lalala" + (tempShip == null));
 			
 			((ShipUnit)target).setDamage(getTorpedoDamage());
 			ShipDirection dire = tempShip.getDirection();
 			
-			if (((ShipUnit)target).isDestoryed()){	
+			if (((ShipUnit)target).isDestroyed()){	
 				tempShip.hitUpdate();
 			}
 			
@@ -102,7 +120,7 @@ public class Destroyer extends Ship{
 					if (neighbor != null) {
 						full++;
 						neighbor.setDamage(getTorpedoDamage());
-						if (neighbor.isDestoryed()){	
+						if (neighbor.isDestroyed()){	
 							tempShip.hitUpdate();
 	    				}
 					}	
@@ -112,7 +130,7 @@ public class Destroyer extends Ship{
 					ShipUnit neighbor = units.get(index + 1);  
 					if (neighbor != null) {
 						neighbor.setDamage(getTorpedoDamage());
-						if (neighbor.isDestoryed()){	
+						if (neighbor.isDestroyed()){	
 							tempShip.hitUpdate();
 	    				}
 					}

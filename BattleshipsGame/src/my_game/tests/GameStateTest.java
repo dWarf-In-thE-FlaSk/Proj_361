@@ -17,6 +17,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import my_game.models.ships_impl.RadarBoat;
 import my_game.util.Positions;
 import my_game.util.Moves;
 import my_game.util.Range;
@@ -48,13 +49,14 @@ public class GameStateTest {
         System.out.println(map.toString());
         Ship[] p0ships = gs.getShipsP0();
         Ship[] p1ships = gs.getShipsP1();
-        Vector2 newPosition;
+        Vector2 newPosition;     
+        
         
         /* TEST positionShip */
-        
-/*        System.out.println( "reposition ship[2] at (0,5). ");
-        newPosition = new Vector2(0,5);
-        gs.positionShip(p0ships[2], newPosition);
+  /*  
+        System.out.println( "reposition ship[10] at (0,20). ");
+        newPosition = new Vector2(0,20);
+        gs.positionShip(p0ships[10], newPosition);
          
         System.out.println(map.toString());     
 
@@ -70,62 +72,102 @@ public class GameStateTest {
         gs.positionShip(p1ships[8], newPosition);       
 
         System.out.println(map.toString());            
-  */
-        /**   TEST move  */
-        Ship s = p1ships[8];
+  
+        System.out.println("size  " + p1ships.length);
+       /**   TEST move  */
+    /*    Ship s = p1ships[10];
         Positions p = map.prepareMoveShip(s);
         ArrayList<Vector2> target = p.getForward();
-        Vector2 v = target.get(4); 
+        Vector2 v = target.get(0);
         map.moveShip(s,v,p);
         System.out.println(" move to " + v.x + " " + v.y);
         System.out.println(map.toString());   
-/*
-       System.out.println("***********************************");        
-        p = map.prepareMoveShip(s);
-        target = p.getLeft();
-        if (target != null){
-            v = target.get(target.size() / 2);
-            map.moveShip(s, v, p);
-            System.out.println(" move to " + v.x + " " + v.y);
-            System.out.println(map.toString());
-        }
-
         p = map.prepareMoveShip(s);
         target = p.getForward();
-        v = target.get(target.size()/2); 
-        map.moveShip(s,v,p);
+        v = target.get(0);
+        map.moveShip(s,v,p);      
         System.out.println(" move to " + v.x + " " + v.y);
-        System.out.println(map.toString());          
+        System.out.println(map.toString());           
+*/
+    /*    System.out.println("***********************************");        
+        Ship s = p1ships[9];
+        Positions p = map.prepareMoveShip(s);
+        ArrayList<Vector2> target = p.getForward();
+        if (target != null){
+            Vector2 v = target.get(target.size()-1);
+            map.moveShip(s, v, p);
+       //     System.out.println(" move to " + v.x + " " + v.y);
+            System.out.println(map.toString());
+        }
+   
+       boolean[][] sonar = map.getSonarVisibility(0);
+       for (int i = 0; i< sonar.length; i++){
+           for (int j = 0; i < sonar[i].length; j++){
+//               System.out.println(sonar[i][j]);  
+           }
+       }
+   */    
+       
+   
+        Ship s = p0ships[9]; 
+        RadarBoat rb = (RadarBoat)s;
+        ArrayList<Vector2> radar = s.getRadarPositions();
+        for (Vector2 v: radar){
+            System.out.println(" radar " + v.x + " " + v.y); 
+        }
+  /*      rb.toggleRadar();
+        radar = s.getRadarPositions();
+        for (Vector2 v: radar){
+            System.out.println(" radar after" + v.x + " " + v.y); 
+        }
         
-        System.out.println("***********************************");        
-        p = map.prepareMoveShip(s);
-        target = p.getBackward();
+        
+        map.layMine(s, new Vector2(8,11));
+        System.out.println(map.toString());       
+        Ship s2 = p0ships[3]; 
+        Positions p = map.prepareMoveShip(s2);
+        ArrayList<Vector2>  target = p.getForward();     
+        Vector2 v = target.get(target.size()-3); 
+        System.out.println(" move to " + v.x + " " + v.y);        
+        map.moveShip(s2,v,p);
+        System.out.println(map.toString());      
+   */     
+     //   System.out.println(" docked s3 " + map.isDocked(s2));
+    //    System.out.println(" docked s8 " + map.isDocked(s));
+        
+    /*   
+        System.out.println("***********************************");    
+        Ship s3 = p0ships[6]; 
+        p = map.prepareMoveShip(s3);
+        target = p.getForward();
         v = target.get(target.size()/2); 
-        map.moveShip(s,v,p);
+        map.moveShip(s3,v,p);
         System.out.println(" move to " + v.x + " " + v.y);
         System.out.println(map.toString());  
-  */      
+    */   
         /**   TEST turn  */
-        s = p1ships[8];
-        TurnPositions pTurn = map.prepareTurnShip(s);
+    /*    
+        TurnPositions pTurn = map.prepareTurnShip(s2);
         ArrayList<Vector2> left = pTurn.getLeft();
         ArrayList<Vector2> right = pTurn.getRight();
         ArrayList<Vector2> back = pTurn.getBackward();
-/*        System.out.println("left size " + left.size());
+        System.out.println("left size " + left.size());
         System.out.println("right size " + right.size());
-        System.out.println("back size " + back.size());
- */    
+//        System.out.println("back size " + back.size());
+     
         v = null;
-        if(left != null) v = left.get(0); 
-        if(right != null) v = right.get(0); 
-        if(back != null) v = back.get(0); 
+        if(left != null){
+            v = left.get(0);
+        } 
+   
+       // if(back != null) v = back.get(0); 
         
-        if(v != null){
-            map.turnShip(s, v, pTurn);
+       if(v != null){
+            map.turnShip(s2, v, pTurn);
             System.out.println(" turn to " + v.x + " " + v.y);
             System.out.println(map.toString());
         }else{
-            System.out.println("MOVE BLOCKED");
+            System.out.println("TURN BLOCKED");
         }
   
         System.out.println("***********************************");          
@@ -137,16 +179,17 @@ public class GameStateTest {
             System.out.println(" move to " + v.x + " " + v.y);
             System.out.println(map.toString());
         }else{
-            System.out.println("TURN BLOCKED");
+            System.out.println("MOVE BLOCKED");
         }
-   /*     System.out.println("***********************************");        
+        System.out.println("***********************************");        
         pTurn = map.prepareTurnShip(s);        
-        v = new Vector2(21,15);
+        left = pTurn.getLeft();
+        if(left != null) v = left.get(0);
         map.turnShip(s,v,pTurn);
-        System.out.println(" turn to 21,15");
+        System.out.println(" turn to " + v.x + " " + v.y);
         System.out.println(map.toString());          
                
-                
-    */
+    */            
+    
     }    
 }

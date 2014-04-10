@@ -17,6 +17,7 @@ import javafx.scene.control.Button;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 
 public class CreateGame
@@ -52,10 +53,11 @@ public class CreateGame
     newGameButton.setOnAction(new EventHandler<ActionEvent>() {
         @Override
         public void handle(ActionEvent event) {
+            Main.status="new";
         	Stage primaryStage=new Stage();
         	AnchorPane page=null;
         	try {
-        		page = (AnchorPane) FXMLLoader.load(Main.class.getResource("GameConfirmation.fxml"));
+        		page = (AnchorPane) FXMLLoader.load(Main.class.getResource("GameConfirm.fxml"));
         	} catch (IOException e) {
         		// TODO Auto-generated catch block
         		e.printStackTrace();
@@ -66,6 +68,7 @@ public class CreateGame
         	Scene scene = new Scene(page);
         	primaryStage.setScene(scene);
         	primaryStage.setTitle("Battleship");
+                primaryStage.initStyle(StageStyle.UNDECORATED);
         	primaryStage.show();
         	Main.setStage(primaryStage);
         }
@@ -74,28 +77,31 @@ public class CreateGame
     loadGameButton.setOnAction(new EventHandler<ActionEvent>() {
         @Override
         public void handle(ActionEvent event) {
-        	Stage primaryStage=new Stage();
-        	AnchorPane page=null;
-        	try {
-        		page = (AnchorPane) FXMLLoader.load(Main.class.getResource("GameConfirmation.fxml"));
-        	} catch (IOException e) {
-        		// TODO Auto-generated catch block
-        		e.printStackTrace();
-        	}
-        	
+            Main.status="load";
         	final JFileChooser chooser = new JFileChooser();
         	FileNameExtensionFilter filter = new FileNameExtensionFilter(
-        			"JPG & GIF Images", "jpg", "gif");
+        			"Save files", "sav");
         	chooser.setFileFilter(filter);
         	int returnVal = chooser.showOpenDialog(null);
+                Main.setFile(chooser.getSelectedFile());
         	if(returnVal == JFileChooser.APPROVE_OPTION) {
-            	Stage previousStage=Main.getStage();
-            	previousStage.close();
-            	Scene scene = new Scene(page);
-            	primaryStage.setScene(scene);
-            	primaryStage.setTitle("Battleship");
-            	primaryStage.show();
-            	Main.setStage(primaryStage);
+                    Stage primaryStage=new Stage();
+                    AnchorPane page=null;
+                    try {
+                            page = (AnchorPane) FXMLLoader.load(Main.class.getResource("GameConfirmation.fxml"));
+                    } catch (IOException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                    }
+
+                    Stage previousStage=Main.getStage();
+                    previousStage.close();
+                    Scene scene = new Scene(page);
+                    primaryStage.setScene(scene);
+                    primaryStage.setTitle("Battleship");
+                    primaryStage.initStyle(StageStyle.UNDECORATED);
+                    primaryStage.show();
+                    Main.setStage(primaryStage);
         	}
 
         }

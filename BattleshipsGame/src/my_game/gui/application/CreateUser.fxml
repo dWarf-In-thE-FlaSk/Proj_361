@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.net.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.effect.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.paint.*?>
+<?import javafx.scene.text.*?>
+<?scenebuilder-stylesheet application.css?>
+
+<AnchorPane fx:id="pane" minHeight="458.0002831054662" minWidth="605.9998779296875" prefHeight="468.0002831054662" prefWidth="605.9998779296875" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/2.2" fx:controller="my_game.gui.application.CreateUser">
+  <!-- TODO Add Nodes -->
+  <children>
+    <ImageView id="battleship" fx:id="background" fitHeight="468.0002831054662" fitWidth="605.9998779296875" layoutX="1.0" layoutY="0.0" pickOnBounds="true">
+      <image>
+        <Image url="@battleship.jpg" preserveRatio="true" smooth="true" />
+      </image>
+    </ImageView>
+    <TextField fx:id="username" layoutX="152.0" layoutY="174.0" prefHeight="28.0" prefWidth="302.0000999999975" />
+    <Label layoutX="271.0" layoutY="146.0" text="Username">
+      <effect>
+        <Lighting surfaceScale="5.0">
+          <bumpInput>
+            <Shadow />
+          </bumpInput>
+          <light>
+            <javafx.scene.effect.Light.Distant azimuth="-135.0" />
+          </light>
+        </Lighting>
+      </effect>
+      <font>
+        <Font name="Arabic Typesetting" size="30.0" fx:id="x1" />
+      </font>
+      <textFill>
+        <Color blue="0.706" green="0.800" red="0.000" fx:id="x2" />
+      </textFill>
+    </Label>
+    <TextField fx:id="password" layoutX="153.0" layoutY="266.0" prefHeight="28.0" prefWidth="302.0000999999975" />
+    <Label font="$x1" layoutX="271.0" layoutY="231.0" text="Password" textFill="$x2">
+      <effect>
+        <Lighting surfaceScale="5.0">
+          <bumpInput>
+            <Shadow />
+          </bumpInput>
+          <light>
+            <javafx.scene.effect.Light.Distant azimuth="-135.0" />
+          </light>
+        </Lighting>
+      </effect>
+    </Label>
+    <Button id="loginGameButton" fx:id="createGameButton" layoutX="263.0" layoutY="306.0" minHeight="42.0" mnemonicParsing="false" prefHeight="47.0" prefWidth="96.0" text="Create">
+      <effect>
+        <Lighting surfaceScale="5.0">
+          <bumpInput>
+            <Shadow />
+          </bumpInput>
+          <light>
+            <javafx.scene.effect.Light.Distant azimuth="-135.0" />
+          </light>
+        </Lighting>
+      </effect>
+      <stylesheets>
+        <URL value="@application.css" />
+      </stylesheets>
+    </Button>
+  </children>
+</AnchorPane>

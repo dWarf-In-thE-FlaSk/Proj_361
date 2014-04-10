@@ -4,6 +4,8 @@
  */
 package my_game.models.game_components;
 
+import my_game.util.Vector2;
+
 /**
  * A zone of predefined size containing
  * obstacles generated at runtime randomly.
@@ -14,7 +16,7 @@ public class CoralReef {
     /** Number of cells the coral reef is high (y-axis dimension in top projection). */
     public final int HEIGHT = 24;
     /** The probability with which an obstacle can appear in a given cell. */
-    private final double CHANCE_OF_OBSTACLE = 0.3;
+    private final double CHANCE_OF_OBSTACLE = 0.15;
     
     /** A grid of booleans. True means an obstacle is in the grid. */
     private boolean[][] reef;
@@ -23,6 +25,17 @@ public class CoralReef {
     public CoralReef() {
         reef = new boolean[WIDTH][HEIGHT];
         reef = randomizeObstaclePositions(reef);
+    }
+
+    public CoralReef(GameState gs) {
+        reef = new boolean[WIDTH][HEIGHT];
+        for(int x = 0; x < WIDTH; x++) {
+            for(int y = 0; y < HEIGHT; y++) {
+                if(gs.getMap().isCoral(new Vector2(x + 10, y + 3))) {
+                    reef[x][y] = true;
+                }
+            }
+        }
     }
     
     @Override

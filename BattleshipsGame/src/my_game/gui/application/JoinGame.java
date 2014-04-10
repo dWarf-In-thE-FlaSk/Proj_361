@@ -1,8 +1,12 @@
 package my_game.gui.application;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.ResourceBundle;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
@@ -18,6 +22,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javax.swing.JOptionPane;
 import my_game.networking.ServerInfo;
 import my_game.networking.ServerListListener;
@@ -67,10 +72,13 @@ public class JoinGame
         ipAddressCol.setCellValueFactory(new PropertyValueFactory<ServerInfo,String>("ipAddressString"));
         taview.getColumns().addAll(serverNameCol, playerNameCol, ipAddressCol);
         taview.setItems(list);
-        c.getLANServersList(new ServerListListener() {
-
+        
+        final Thread serverLookupThread;    //This is the thread on which the server lookup is running
+        serverLookupThread = GameClient.getLANServersList(new ServerListListener() {
             public void addServerInfo(ServerInfo si) {
-                list.add(si);
+                if(!list.contains(si)) {
+                    list.add(si);
+                }
             }
         });
         
@@ -81,23 +89,43 @@ public class JoinGame
             @Override
             public void handle(ActionEvent event) {
                 ServerInfo server = taview.getSelectionModel().getSelectedItem();
-                Main.getClient().connect(server.ipAddress);
+                if(server != null) {
+                    serverLookupThread.interrupt();
+                    Main.getClient().connect(server.ipAddress);
+                    
+                }
+                    
                 
                 Stage primaryStage = new Stage();
                 AnchorPane page = null;
+                
+                if(server.isLoaded){
                 try {
                     page = (AnchorPane) FXMLLoader.load(Main.class.getResource("GameConfirmation.fxml"));
-                } catch (IOException e) {
+                } 
+                catch (IOException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
+                }
                 
-                if (server != null) {
+                else{
+                   try {
+                    page = (AnchorPane) FXMLLoader.load(Main.class.getResource("GameConfirm.fxml"));
+                } 
+                catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                } 
+                }
+                
+                if (true) {
                     Stage previousStage = Main.getStage();
                     previousStage.close();
                     Scene scene = new Scene(page);
                     primaryStage.setScene(scene);
                     primaryStage.setTitle("Battleship");
+                    primaryStage.initStyle(StageStyle.UNDECORATED);
                     primaryStage.show();
                     Main.setStage(primaryStage);
                 } else {
@@ -111,6 +139,13 @@ public class JoinGame
         returnGameButton.setOnAction(new EventHandler<ActionEvent>() {
             @Override
             public void handle(ActionEvent event) {
+                //non javafx client stopping stuff
+                /*if(Main.getClient() != null) {
+                    Main.getClient().stopClient();
+                    Main.setClient(null);
+                }*/
+                serverLookupThread.interrupt();
+                //**************************
                 Stage primaryStage = new Stage();
                 AnchorPane page = null;
                 try {

@@ -3,22 +3,39 @@
  * and open the template in the editor.
  */
 package my_game.models.game_components;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.JOptionPane;
+import my_game.gui.GameGUI.Action;
+
 import my_game.models.player_components.ChatLog;
+import my_game.models.player_components.Message;
 import my_game.models.player_components.Player;
-import my_game.util.Vector2;
 import my_game.models.ships_impl.*;
 import my_game.util.GameException;
+import my_game.util.Positions;
+import my_game.util.ShipDirection;
+import my_game.util.Vector2;
 /**
  * The state of a game describes a game fully.
  */
 public class GameState implements java.io.Serializable {
-    
+
     public enum GamePhase {
         New,    // game has just been created, players have not interacted yet
         ShipPositioning, // after creating the game, players position their ships on the map
+        ShipPositioningDone,    //when the player is done positioning his ships and is waiting for the other player to be done too
         PlayerTurns,    // the main part of the game where players take turns 
         GameOver    //the game is over, one player is the winner
     };
@@ -40,9 +57,12 @@ public class GameState implements java.io.Serializable {
     protected ChatLog chatLog;
     protected Map map;
     
+    /* Variables used to describe the last action. */
+    public ActionDescription previousAction;
+    
     /* TEST ONLY */
-    Ship[] player0Ships;
-    Ship[] player1Ships;
+    //Ship[] player0Ships;
+    //Ship[] player1Ships;
     
     //TODO accessors and mutators for chat log and map
 
@@ -62,20 +82,42 @@ public class GameState implements java.io.Serializable {
         Base player0Base = new Base(player[0].getID(),1);
         Base player1Base = new Base(player[1].getID(),0);
         BaseUnit[] bu = player0Base.getBaseUnits();
+        for (BaseUnit b: bu){
+          //  System.out.println("base 0 == " + 
+        }
 
         //init each player's ships
    //     Ship[] player0Ships = generateShips(player[0].id, player0Base);
    //     Ship[] player1Ships = generateShips(player[1].id, player1Base);
 
-        /* TEST ONLY */
-        player0Ships = generateShips(player[0].id, player0Base);
-        player1Ships = generateShips(player[1].id, player1Base);             
+        Ship[] player0Ships = generateShips(player[0].id, player0Base);
+        Ship[] player1Ships = generateShips(player[1].id, player1Base);             
         /***********/
         
         //init map
         map = new Map(reef, player0Ships, player1Ships, player0Base, player1Base);
         //init chat
         chatLog = new ChatLog();
+    }
+    
+    /**
+     * Returns a list of all messages received by a given player.
+     * @param p
+     * @return 
+     */
+    public List<Message> getChatLog(Player p) {
+        return this.chatLog.getMessages(p);
+    }
+    
+    /**
+     * Changes the turn to the next player.
+     */
+    public void nextTurn() {
+        this.playerTurn = (playerTurn + 1) % 2;
+    }
+    
+    public void addMessage(Message m) {
+        chatLog.addMessage(m);
     }
     
     /**
@@ -86,13 +128,35 @@ public class GameState implements java.io.Serializable {
         return this.map;
     }
     
+    /**
+     * @return The current game phase.
+     */
+    public GamePhase getPhase() {
+        return this.phase;
+    }
+    
+    public int getPlayerTurn() {
+        return this.playerTurn;
+    }
+    
+    /**
+     * Returns the player with the specified index.
+     * West/blue player has index 0. 
+     * East/red player has index 1.
+     * @param index
+     * @return 
+     */
+    public Player getPlayer(int index) {
+        return player[index];
+    }
+    
     /* TEST ONLY */
     public Ship[] getShipsP0(){
-        return player0Ships;
+        return (Ship[]) map.player0Ships.toArray();
     }
     
     public Ship[] getShipsP1(){
-        return player1Ships;
+        return (Ship[]) map.player1Ships.toArray();
     }    
     /******END TEST *******************/
     
@@ -103,6 +167,8 @@ public class GameState implements java.io.Serializable {
         System.arraycopy(copyState.player, 0, this.player, 0, copyState.player.length);
         this.playerTurn = copyState.playerTurn;
         this.name = copyState.name;
+        //copy the previous action
+        this.previousAction = copyState.previousAction;
         //use copy constructor to create a chatlog copy
         this.chatLog = new ChatLog(copyState.chatLog);
         //use copy constructor to create a map copy
@@ -128,6 +194,70 @@ public class GameState implements java.io.Serializable {
         
         return ships;
     }
+    
+    /**
+     * Removes from the map ships which are sunk.
+     */
+    public void sinkShips() {
+        for(Ship s: map.player0Ships) {
+          //  if(s.getSize() <= 0) {
+          ShipUnit[] shipunits = s.getShipUnits();
+          boolean destroyed = true;
+          for (ShipUnit su: shipunits){
+              if (!su.isDestroyed()){
+                  destroyed = false;
+                  break;
+              }
+          }
+          if (destroyed){
+            sinkShip(s);
+            map.player0Ships.remove(s);
+          }
+        }
+        for(Ship s: map.player1Ships) {
+       //     if(s.getSize() <= 0) {
+          ShipUnit[] shipunits = s.getShipUnits();
+          boolean destroyed = true;
+          for (ShipUnit su: shipunits){
+              if (!su.isDestroyed()){
+                  destroyed = false;
+                  break;
+              }
+          }
+          if (destroyed){
+            sinkShip(s);
+            map.player0Ships.remove(s);
+          }
+      }
+}
+    
+    private void sinkShip(Ship s) {
+        for(ShipUnit su: s.getShipUnits()) {
+            map.setObjectAt(su.getPosition(), null);
+        }
+    }
+    
+    public boolean[][] getRadarVisibility(Player p) {
+        if(p.equals(player[0])) {
+            return map.getRadarVisibility(0);
+        } else if(p.equals(player[1])) {
+            return map.getRadarVisibility(1);
+        } else {
+            Logger.getLogger(GameState.class.getName()).log(Level.SEVERE, null,                         
+                        new GameException("Unrecongnized player: " + p));
+            return null;
+        }
+    }
+    
+    /**
+     * Sets the player at the provided index to the provided player object.
+     * @param index
+     * @param player 
+     */
+    public void setPlayer(int index, Player player) {
+       this.player[index] = player;
+    }
+    
     private Ship[] generatePlayerShips(int pid) {
         System.out.println("**********Generating ships for P0 ********");
         ShipDirection d = ShipDirection.East; 
@@ -201,7 +331,12 @@ public class GameState implements java.io.Serializable {
             position.add(v);
         }        
         RadarBoat r = new RadarBoat(pid, position, d);   
-        Ship[] ships = new Ship[10];
+        position.clear();
+        Vector2 kam = new Vector2(0,20);
+        position.add(kam);
+        KamikazeBoat k = new KamikazeBoat(pid,position,d);
+        
+        Ship[] ships = new Ship[11];
         ships[0]= c1;
         ships[1]= c2;
         ships[2]= d1;
@@ -212,6 +347,7 @@ public class GameState implements java.io.Serializable {
         ships[7]= m1;
         ships[8]= m2;
         ships[9]= r;
+        ships[10] = k;
                        
         return ships;
     }
@@ -289,8 +425,12 @@ public class GameState implements java.io.Serializable {
             Vector2 v = new Vector2(x,y);
             position.add(v);
         }        
-        RadarBoat r = new RadarBoat(pid, position, d);   
-        Ship[] ships = new Ship[10];
+        RadarBoat r = new RadarBoat(pid, position, d);  
+        position.clear();
+        Vector2 kam = new Vector2(29,9);
+        position.add(kam);
+        KamikazeBoat k = new KamikazeBoat(pid,position,d);        
+        Ship[] ships = new Ship[11];
         ships[0]= c1;
         ships[1]= c2;
         ships[2]= d1;
@@ -301,6 +441,7 @@ public class GameState implements java.io.Serializable {
         ships[7]= m1;
         ships[8]= m2;
         ships[9]= r;
+        ships[10] = k;
                        
         return ships;
     }  
@@ -309,49 +450,57 @@ public class GameState implements java.io.Serializable {
      * This method is called when the players rearrange their ships around the base.
      * @param s The ship they want to move
      * @param p The position they want to move to. (Does not need to be the
+     * @return True if the positionning was successful, otherwise false.
      * position of the bow.
      */
-    public void positionShip(Ship s, Vector2 p) {
+    public boolean positionShip(Ship s, Vector2 p) {
         boolean validTarget = true;
         int shipSize = s.getSize();
         ArrayList<Vector2> positions = new ArrayList<Vector2>();
         int i;
-        if(p.x == 0){
+        if(p.x == 0){ // blue side
             if (p.y <= 9 && p.y >= 5){
                 for (i = 10-shipSize; i < 10; i++){
                     Vector2 v = new Vector2(p.x,i);
+                    s.setDirection(ShipDirection.North);
                     positions.add(v);
                 }              
             }else if (p.y >= 20 && p.y <= 24){
                 for (i = 19+shipSize; i > 19; i--){
                     Vector2 v = new Vector2(p.x,i);
+                    s.setDirection(ShipDirection.South);
                     positions.add(v);                
                 }
             }
-        }else if (p.x == 29){
+        }else if (p.x == 29){ //red side
             if (p.y <= 9 && p.y >= 5){
                 for (i = 10-shipSize; i < 10; i++){
                     Vector2 v = new Vector2(p.x,i);
+                    s.setDirection(ShipDirection.North);
                     positions.add(v);
                 }              
             }else if (p.y >= 20 && p.y <= 24){
                 for (i = 19+shipSize; i > 19; i--){
                     Vector2 v = new Vector2(p.x,i);
+                    s.setDirection(ShipDirection.South);
                     positions.add(v);                
                 }
             }
         }else if(p.y > 9 && p.y < 20 && p.x <= 5){
-            for (i = 1; i <= shipSize; i++){
+            for (i = shipSize; i >= 1; i--){
                 Vector2 v = new Vector2(i,p.y);
+                s.setDirection(ShipDirection.East);
                 positions.add(v);
             }             
         }else if(p.y > 9 && p.y < 20 && p.x >= 24){
             for (i = 29-shipSize; i < 29; i++){
                 Vector2 v = new Vector2(i,p.y);
+                s.setDirection(ShipDirection.West);
                 positions.add(v);            
             }
         }else{
-            validTarget = false;;
+            validTarget = false;
+            map.updateRadarVisibilityArrays(); 
         }
         
         if (validTarget){        
@@ -362,17 +511,154 @@ public class GameState implements java.io.Serializable {
                     }
                 }
             if (canMove){
-                map.updateShipPositions(s,positions);            
+                map.updateShipPositions(s,positions);  
                 s.moveTo(positions);
-            }        
+                map.updateRadarVisibilityArrays();
+                return true;
+            }else{
+                map.updateRadarVisibilityArrays();                
+            }    
+        }else{
+            map.updateRadarVisibilityArrays(); 
         }
+        //the target was invalid and no movement occured
+        return false;
     }    
+    
+    /**
+     * this method should be called by Game after each turn to make sure the game
+     * is ended immediately when a player is defeated.
+     * @return True if the game is over, otherwise false.
+     */
+    public boolean gameOver() {
+        if (this.phase.equals(GamePhase.GameOver)){
+            return true;
+        }else{
+            if(map.isEndGame()){
+                setGamePhase(GamePhase.GameOver);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Save the current game state to a local file.
+     * @throws FileNotFoundException
+     * @throws IOException 
+     */
+    public boolean saveGame(String filename) throws IOException{
+        File file = new File(filename+".sav"); 
+        if(file.exists() && !file.isDirectory()) {
+            JOptionPane.showMessageDialog(null,
+                    "The filename provided already exists Save failed");
+            return false;
+        }
+        FileOutputStream f = new FileOutputStream(filename+".sav");
+        ObjectOutput s = new ObjectOutputStream(f); 
+        s.writeObject(this); 
+        s.flush();
+        s.close(); 
+        return true;
+    }       
+    
+    /**
+     * Load the game state from the given file.
+     * @param gameFile
+     * @throws FileNotFoundException
+     * @throws IOException 
+     */
+    public static GameState loadGame(String gameFile) throws FileNotFoundException, IOException {
+        FileInputStream in = new FileInputStream(gameFile);
+        ObjectInputStream s = new ObjectInputStream(in); 
+        GameState loadedGame = null; 
+        try { 
+            loadedGame=(GameState)s.readObject();
+        } catch (ClassNotFoundException e) {
+            // TODO Auto-generated catch block e.printStackTrace();
+        } s.close(); return loadedGame;
+    }
+    
+    /**
+     * @return The player whose turn it currently is.
+     */
+    public Player getCurrentPlayer() {
+        return player[playerTurn];
+    }
+    
+    /**
+     * Replaces the positions of all ships not belonging to the invariable player
+     * with the positions of those same ships provided in the otherState GameState
+     * object.
+     * @param invariablePlayer Player whose ships will not be touched in this and
+     * the otherState GameState objects.
+     * @param otherState A game state which contains the new positions of the ships.
+     * 
+     */
+    public void mergeShipPositions(Player invariablePlayer, GameState otherState) {
+        //find out which player is the invariable player
+        if(invariablePlayer.equals(this.player[0])) {
+            //place player[1]'s ships from otherState into this GameState
+            map.player1Ships.clear();
+            map.player1Ships.addAll(otherState.map.player1Ships);
+            //now copy the respective player's half of the map grid to this state's map grid
+            map.setGrid(otherState.map, 15, 0, 29, 29);
+        } else if(invariablePlayer.equals(this.player[1])) {
+            //place player[0]'s ships from otherState into this GameState
+            map.player0Ships.clear();
+            map.player1Ships.addAll(otherState.map.player0Ships);
+            //now copy the respective player's half of the map grid to this state's map grid
+            map.setGrid(otherState.map, 0, 0, 15, 29);
+        } else {
+            Logger.getLogger(GameState.class.getName()).log(Level.SEVERE, null, new GameException("Unknown player."));
+        }
+    }
+    
+    
+    public boolean moveShip(Ship s, Vector2 input, Positions moveHighlight) {
+        Vector2[] oldPos = s.getPositions();
+        if(map.moveShip(s, input, moveHighlight)) {
+            //the move has been successful, the ship has been updated, update previousAction
+            previousAction = new MoveDescription(oldPos, s.getPositions());
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public void pickupMine(MineLayer miner, Vector2 input) {
+        map.pickupMine(miner, input);
+    }
+
+    public GameObject layMine(Ship s, Vector2 input) {
+        return map.layMine(s, input);
+    }
+    
+    public GameObject cannonAttack(Ship s, Vector2 target) {
+        GameObject hit = map.cannonAttack(s, target);
+        if(hit != null) {
+            previousAction = new CannonDescription(target, s.getPosition(), true);
+        } else {
+            previousAction = new CannonDescription(target, s.getPosition(), false);
+        }
+        return hit;
+    }
+    
+    public boolean isSeenBySonar(Vector2 position, Player p) {
+        if(p.equals(player[0])) {
+            return map.getSonarVisibility(0)[position.x][position.y];
+        } else {
+            return map.getSonarVisibility(1)[position.x][position.y];
+        }
+    }
     
     @Override
     public String toString() {
+        
         StringBuilder sb = new StringBuilder();
         
         sb.append("phase: " + this.phase + "\n");
+        sb.append("previousAction: " + this.previousAction.actionType + "\n");
         sb.append("Player0: " + this.player[0] + "\n");  //requires Player.toString();
         sb.append("Player1: " + this.player[1] + "\n");
         sb.append("Player turn: " + this.playerTurn + "\n");        

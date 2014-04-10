@@ -1,7 +1,6 @@
 
 package my_game.util;
 import java.util.ArrayList;
-import my_game.models.game_components.ShipDirection;
 /**
  * This class contains 5 arraylists of positions involved when turning a ship.
  * @author wei
@@ -34,6 +33,27 @@ public class TurnPositions {
         this.right = r;
         this.rightPath = rp;
         this.backward = back;
+    }
+    
+    /**
+     * 
+     * @return All highlight positions which should be displayed by the gui.
+     */
+    public ArrayList<Vector2> getAll() {
+        ArrayList<Vector2> list = new ArrayList<Vector2>();
+        ArrayList<Vector2> l = getLeft();
+        ArrayList<Vector2> r = getRight();
+        ArrayList<Vector2> b = getBackward();
+        if(l != null) {
+            list.addAll(l);
+        }
+        if(r != null) {
+            list.addAll(r);
+        }
+        if(b != null) {
+            list.addAll(b);
+        }
+        return list;
     }
     
     public ArrayList<Vector2> getLeft(){

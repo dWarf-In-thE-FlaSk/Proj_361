@@ -17,12 +17,15 @@ public class ServerInfo {
     public String serverName;
     public String playerName;
     public InetAddress ipAddress;
+    public boolean isLoaded;
     
     public final SimpleStringProperty serverNameString;
     public final SimpleStringProperty playerNameString;
     public final SimpleStringProperty ipAddressString;
     
-    public ServerInfo(String serverName, String playerName, InetAddress ipAddress) {
+    public ServerInfo(String serverName, String playerName, InetAddress ipAddress, boolean isLoaded) {
+        this.isLoaded = isLoaded;
+        
         this.serverName = serverName;
         this.playerName = playerName;
         this.ipAddress = ipAddress;        
@@ -47,5 +50,20 @@ public class ServerInfo {
     @Override
     public String toString() {
         return ("server: " + serverName + "| " + playerName + ":" + ipAddress.toString());
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if(o == null || o.getClass() != this.getClass()) {
+            return false;
+        }
+        ServerInfo other = (ServerInfo) o;
+        if(serverName.equals(other.serverName) &&
+                playerName.equals(other.playerName) &&
+                ipAddress.equals(other.ipAddress)) {
+            return true;
+        } else {
+            return false;
+        }
     }
 }

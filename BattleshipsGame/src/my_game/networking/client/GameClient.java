@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -26,8 +27,8 @@ import my_game.networking.ServerListListener;
 import my_game.networking.packets.impl.GameStatePacket;
 import my_game.networking.packets.impl.HelloPacket;
 import my_game.networking.packets.impl.ServerInfoPacket;
+import my_game.networking.packets.impl.SilentPacket;
 import my_game.networking.packets.impl.VotePacket;
-import my_game.networking.server.GameServer;
 import my_game.util.GameException;
 import my_game.util.Misc;
 
@@ -61,7 +62,7 @@ public class GameClient extends Thread implements NetworkEntity {
     /**
      * A flag for stopping the client thread.
      */
-    private boolean clientRunning = false;
+    private boolean clientRunning = false, invalidReceived;
     /**
      * A packet handler handling the packets received by the client.
      */
@@ -71,6 +72,8 @@ public class GameClient extends Thread implements NetworkEntity {
      */
     private Socket clientSocket;
     private Player connectedPlayer;
+    /* The thread on which this client is running. */
+    private Thread mainThread;
 
     public GameClient(Player clientPlayer) {
         this.client = clientPlayer;
@@ -93,8 +96,8 @@ public class GameClient extends Thread implements NetworkEntity {
         
         //start the client thread
         clientRunning = true;
-        Thread t = new Thread(new ClientThread());
-        t.start();
+        mainThread = new Thread(new ClientThread());
+        mainThread.start();
     }
     
     /**
@@ -106,49 +109,89 @@ public class GameClient extends Thread implements NetworkEntity {
      * @return The thread created for the server searching is returned.
      */
     public static Thread getLANServersList(final ServerListListener sll) {
+        
         Thread t = new Thread(new Runnable() {
             public void run() {
-                InetAddress localhost;
-                try {
-                    localhost = InetAddress.getLocalHost();
-                    // this code assumes IPv4 is used
-
-                    byte[] ip = localhost.getAddress();
-
-                    //if the thread is interrupted the for loop terminates
-                    for (int i = 1; i < 255 && !Thread.currentThread().isInterrupted(); i++) {
-                        ip[3] = (byte)i;
-                        InetAddress address = InetAddress.getByAddress(ip);
-                        //make connection to try to reach a server
-                        try {
-                            Socket s = new Socket();
-                            s.connect(new InetSocketAddress(address, Constants.SERVER_INFO_PORT), 75);
-                            DataInputStream di = new DataInputStream(s.getInputStream());
-                            
-                            byte[] data = new byte[1024];
-                            //wait to receive a packet
-                            di.read(data);
-                            //the packet should be a server info packet
-                            ServerInfoPacket sip = new ServerInfoPacket(data);
-                            //convert received packet into ServerInfo object
-                            ServerInfo si = new ServerInfo(sip.serverName, sip.playerName, sip.ipAddress);
-                            
-                            sll.addServerInfo(si);
-                            //close socket and stream
-                            di.close();
-                            s.close();
-                        } catch (GameException ex) {
-                            Logger.getLogger(GameClient.class.getName()).log(Level.SEVERE, null, ex);
-                        } catch(SocketTimeoutException ignore) {}
-                        
+                Thread t1 = new Thread(new Runnable() {
+                    public void run() {
+                        scanServers(1, 85, sll);
                     }
-                } catch (IOException ex) {
-                    Logger.getLogger(GameClient.class.getName()).log(Level.SEVERE, null, ex);
+                });
+                t1.start();
+                Thread t2 = new Thread(new Runnable() {
+                    public void run() {
+                        scanServers(85, 170, sll);
+                    }
+                });
+                t2.start();
+                Thread t3 = new Thread(new Runnable() {
+                    public void run() {
+                        scanServers(170, 255, sll);
+                    }
+                });
+                t3.start();
+                try {
+                    t1.join();
+                    t2.join();
+                    t3.join();
+                } catch (InterruptedException ignore) {
+                } finally {
+                    t1.interrupt();
+                    t2.interrupt();
+                    t3.interrupt();
                 }
             }
         });
         t.start();
         return t;
+    }
+    
+    private static void scanServers(int startRange, int endRange, ServerListListener sll) {
+        boolean stop = false;
+        while(!stop) {  //scan the whole LAN IP range until told to stop
+            InetAddress localhost;
+            try {
+                localhost = InetAddress.getLocalHost();
+                // this code assumes IPv4 is used
+
+                byte[] ip = localhost.getAddress();
+
+                //if the thread is interrupted the for loop terminates
+                for (int i = startRange; i < endRange; i++) {
+                    if(Thread.currentThread().isInterrupted()) {    //check if interrupted
+                        stop = true;
+                        break;
+                    }
+                    ip[3] = (byte)i;
+                    InetAddress address = InetAddress.getByAddress(ip);
+                    //make connection to try to reach a server
+                    try {
+                        Socket s = new Socket();
+                        s.connect(new InetSocketAddress(address, Constants.SERVER_INFO_PORT), 50);
+                        DataInputStream di = new DataInputStream(s.getInputStream());
+
+                        byte[] data = new byte[1024];
+                        //wait to receive a packet
+                        di.read(data);
+                        //the packet should be a server info packet
+                        ServerInfoPacket sip = new ServerInfoPacket(data);
+                        //convert received packet into ServerInfo object
+                        ServerInfo si = new ServerInfo(sip.serverName, sip.playerName, sip.ipAddress, sip.isLoaded);
+                        synchronized(sll) {
+                            sll.addServerInfo(si);
+                        }
+                        //close socket and stream
+                        di.close();
+                        s.close();
+                    } catch (GameException ex) {
+                        Logger.getLogger(GameClient.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch(SocketTimeoutException ignore) {}
+
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(GameClient.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
     public void addNetListener(NetEntityListener l) {
@@ -171,7 +214,11 @@ public class GameClient extends Thread implements NetworkEntity {
 
     public void sendGameState(GameState gs) {
         GameStatePacket p = new GameStatePacket(gs);
-        this.sendData(p.getData());
+        try {
+            this.sendData(p.getData());
+        } catch (IOException ex) {
+            Logger.getLogger(GameClient.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     public InetAddress getRemote() {
@@ -203,9 +250,22 @@ public class GameClient extends Thread implements NetworkEntity {
     
     public void sendVote(boolean vote) {
         VotePacket v = new VotePacket(vote);
-        sendData(v.getData());
+        try {
+            sendData(v.getData());
+        } catch (IOException ex) {
+            Logger.getLogger(GameClient.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
+    public void invalidPacket() {
+        invalidReceived = true;
+    }
+
+    public void stopNet() {
+        this.stopClient();
+        //TODO notify server for disconnect.
+    }
+        
     private class ClientThread implements Runnable {
         public void run() {
             try {
@@ -236,6 +296,19 @@ public class GameClient extends Thread implements NetworkEntity {
                 try {
                     //wait to receive a packet
                     in.read(data);
+
+                    if(invalidReceived) {
+                        //test if connection is still alive by sending silent
+                        try {
+                            sendData(new SilentPacket().getData());
+                        } catch(IOException e) {
+                            clientRunning = false;
+                            Misc.log("Server disconnected. Will now close client.");
+                        } finally {
+                            invalidReceived = false;
+                        }
+                    }
+                                            
                     //handle packet
                     packetHandler.handlePacket(data);
                 } catch (Exception e) {
@@ -243,9 +316,6 @@ public class GameClient extends Thread implements NetworkEntity {
                     clientRunning = false;
                 }
             }
-            //we are done and it has been requested that the client turns off
-            closeClient();
-
             //end of thread
         }
     }
@@ -269,18 +339,19 @@ public class GameClient extends Thread implements NetworkEntity {
      */
     public void stopClient() {
         clientRunning = false;
+        //we are done and it has been requested that the client turns off
+        closeClient();
     }
-
+    
     /**
      * @param data Data to send to the server.
      */
-    public void sendData(byte[] data) {
+    public void sendData(byte[] data) throws IOException {
         //send packet
         try {
-            out.write(data);
-        } catch (IOException e) {
-            e.printStackTrace();
+         out.write(data);
+        } catch(SocketException e) {
+            this.stopNet();
         }
     }
-    
 }
